@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#090b10">
+  <title>Memebot · simulación</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23d6ff4a' rx='8' width='32' height='32'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='13' font-family='sans-serif' font-weight='700' fill='%2314180a'%3Emb%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="side" id="side">
+      <div class="side-top">
+        <div class="brand">
+          <span class="mark" aria-hidden="true">mb</span>
+          <span class="brand-text">
+            <strong>panel de trading</strong>
+            <em>memebot · papel</em>
+          </span>
+        </div>
+        <p class="badge-paper">BOT · PAPER</p>
+      </div>
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Secciones" hidden>
+        <button type="button" role="tab" id="tab-principal" data-tab="principal" aria-controls="panel-principal" aria-selected="true">
+          <span class="tab-label">Principal</span>
+          <span class="tab-pnl" id="nav-pnl-principal">—</span>
+        </button>
+        <button type="button" role="tab" id="tab-loteria" data-tab="loteria" aria-controls="panel-loteria" aria-selected="false" tabindex="-1">
+          <span class="tab-label">Lotería <span class="tab-count" id="tab-loteria-count" hidden></span></span>
+          <span class="tab-pnl" id="nav-pnl-loteria">—</span>
+        </button>
+        <button type="button" role="tab" id="tab-cripto" data-tab="cripto" aria-controls="panel-cripto" aria-selected="false" tabindex="-1">
+          <span class="tab-label">Acciones ASL <span class="tab-count" id="tab-cripto-count" hidden></span></span>
+          <span class="tab-pnl" id="nav-pnl-cripto">—</span>
+        </button>
+        <button type="button" role="tab" id="tab-noticias" data-tab="noticias" aria-controls="panel-noticias" aria-selected="false" tabindex="-1">
+          <span class="tab-label">Noticias <span class="tab-count" id="tab-noticias-count" hidden></span></span>
+          <span class="tab-pnl" id="nav-pnl-noticias">—</span>
+        </button>
+      </nav>
+      <div class="side-real" id="side-real" hidden>
+        <p class="side-kicker">REAL · MANUAL</p>
+        <p class="cocos-line" id="cocos-line"><span>Cartera Cocos</span><em>sin saldo en este envío</em></p>
+      </div>
+      <div class="side-status" id="side-status">
+        <p class="live" id="live" hidden></p>
+        <p class="scan-line" id="scan-line">Último escaneo sin hora</p>
+        <p class="tg-line" id="tg-line" hidden>Telegram no informado</p>
+      </div>
+      <button class="btn-ghost side-out" id="logout" type="button" hidden>Salir</button>
+    </aside>
+
+    <div class="maincol">
+      <div class="wrap">
+        <form id="gate" hidden>
+          <p class="kicker">Simulación de memecoins</p>
+          <h1>Mirá cómo viene el bot</h1>
+          <p class="lead">Anota compras que nunca salen de una wallet. El token es la clave que configuraste: sin eso, acá no se ve nada.</p>
+          <label>Token de acceso
+            <input id="token" name="token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+          </label>
+          <button class="btn-primary" type="submit">Entrar</button>
+          <button class="btn-ghost btn-block" id="dev-link" type="button">Ver el snapshot local</button>
+          <p class="hint" id="local-hint" hidden>En esta máquina no se consulta Supabase. Con un token se lee <span class="mono">/token/stats.json</span>. El botón de arriba abre el ejemplo.</p>
+          <p class="error" id="gate-error" role="status"></p>
+        </form>
+
+        <main id="app" hidden>
+          <p class="banner" id="banner" hidden></p>
+          <section id="panel-principal" role="tabpanel" aria-labelledby="tab-principal" tabindex="0"></section>
+          <section id="panel-loteria" role="tabpanel" aria-labelledby="tab-loteria" tabindex="0" hidden></section>
+          <section id="panel-noticias" role="tabpanel" aria-labelledby="tab-noticias" tabindex="0" hidden></section>
+          <section id="panel-cripto" role="tabpanel" aria-labelledby="tab-cripto" tabindex="0" hidden></section>
+          <footer class="foot" id="foot"></footer>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+  <noscript><p class="banner wrap">Necesitás JavaScript para ver el tablero.</p></noscript>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
