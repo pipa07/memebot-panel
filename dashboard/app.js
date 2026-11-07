@@ -87,9 +87,7 @@ const ro = new ResizeObserver((entries) => {
 });
 
 function esc(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[ch]));
+  return window.MemebotOps.escapeHtml(value);
 }
 
 function firstNum(...values) {
@@ -310,54 +308,28 @@ function extremesText(buckets) {
   return `Mejor hora ${fmtHour(best)} (${signedText(best.delta)}). Peor hora ${fmtHour(worst)} (${signedText(worst.delta)}).`;
 }
 
-function hasCarteraCurve(stats) {
-  return Boolean(stats.portfolio && Array.isArray(stats.portfolio.equity) && stats.portfolio.equity.length);
-}
-
-function todasEquity(stats) {
-  if (Array.isArray(stats.total_equity) && stats.total_equity.length) return stats.total_equity;
-  if (Array.isArray(stats.chart)) {
-    const total = stats.chart.find((series) => series && series.id === "total" && series.points && series.points.length)
-      || stats.chart.find((series) => series && series.points && series.points.length);
-    if (total) return total.points;
-  }
-  return null;
+function opsView(stats) {
+  return window.MemebotOps.viewForRender(stats);
 }
 
 function principalView(stats) {
-  if (stats.portfolio) state.chartMode = "cartera";
-  const cartera = hasCarteraCurve(stats);
-  const todas = todasEquity(stats);
-  if (state.chartMode === "cartera" && cartera) {
-    return {
-      buckets: bucketEquity(stats.portfolio.equity),
-      note: `Solo la cartera${stats.portfolio.family_since ? `, desde ${esc(stats.portfolio.family)} (${esc(hora(stats.portfolio.family_since))})` : ""}${stats.portfolio.version_since && stats.portfolio.version !== stats.portfolio.family ? `; ${esc(stats.portfolio.version)} arranca el ${esc(hora(stats.portfolio.version_since))}` : ""}. Al cierre de cada hora ART; la barra es el neto de esa hora. El laboratorio no entra.`,
-    };
+  const view = opsView(stats || {});
+  const book = view.principal;
+  const buckets = bucketEquity(book.equity);
+  if (!view.ok) {
+    return { buckets: [], note: view.error || "No hay datos de la cartera." };
   }
-  if (stats.portfolio) {
+  if (!buckets.length) {
     return { buckets: [], note: "La cartera todavía no tiene cierres en este período. Las estrategias del laboratorio no se suman acá." };
   }
-  if (todas) {
-    return {
-      buckets: bucketEquity(todas),
-      note: state.chartMode === "cartera"
-        ? "Este envío no trae la curva de la cartera. Acá está la suma de las estrategias, por hora ART."
-        : "Suma de las estrategias al cierre de cada hora ART. La barra es el neto de esa hora.",
-    };
-  }
-  const trades = state.chartMode === "cartera" && stats.portfolio && Array.isArray(stats.portfolio.recent) && stats.portfolio.recent.length
-    ? stats.portfolio.recent
-    : (stats.recent_trades || []);
-  const built = bucketTrades(trades);
-  if (built.buckets.length) {
-    return {
-      buckets: built.buckets,
-      note: built.approx
-        ? "No vino la curva. Armé las horas con los cierres del envío y, si faltaba la hora de salida, usé la de entrada."
-        : "No vino la curva. Sumé los cierres que trajo este envío: puede estar incompleto.",
-    };
-  }
-  return { buckets: [], note: "No hay curva ni cierres con fecha para armar el gráfico por hora." };
+  const since = book.familySince ? `, desde ${esc(book.family)} (${esc(hora(book.familySince))})` : "";
+  const version = book.versionSince && book.version && book.version !== book.family
+    ? `; ${esc(book.version)} arranca el ${esc(hora(book.versionSince))}`
+    : "";
+  return {
+    buckets,
+    note: `Solo la cartera${since}${version}. Al cierre de cada hora ART; la barra es el neto de esa hora. El laboratorio no entra.`,
+  };
 }
 
 function loteriaView(stats) {
@@ -713,21 +685,12 @@ function bookStrategyNames(book) {
 }
 
 function sectionPnl(stats) {
-  const book = (stats && (stats.portfolio || stats.summary)) || {};
-  const lot = stats && stats.loteria;
-  const real = lot && lot.detail && lot.detail.real;
-  const asl = stats && stats.asl;
-  const conf = asl && asl.conf && asl.conf.summary;
-  const aslSum = asl && asl.summary;
-  let aslN = null;
-  if (conf) aslN = (Number(conf.realized) || 0) + (Number(conf.unrealized) || 0);
-  else if (aslSum) aslN = (Number(aslSum.realized) || 0) + (Number(aslSum.unrealized) || 0);
-  const news = stats && stats.noticias_x;
+  const view = opsView(stats || {});
   return {
-    principal: firstNum(book.pnl_usd),
-    loteria: real ? firstNum(real.realized, real.pnl) : lot ? firstNum(lot.pnl_usd, lot.pnl) : null,
-    cripto: aslN,
-    noticias: news && typeof news === "object" ? firstNum(news.net_usd) : null,
+    principal: view.principal.pnl,
+    loteria: view.loteriaPnl,
+    cripto: view.aslPnl,
+    noticias: view.noticiasPnl,
   };
 }
 
@@ -760,16 +723,16 @@ function renderChrome(stats) {
   const hasNews = Boolean(stats.noticias_x && typeof stats.noticias_x === "object");
   if (newsTab) newsTab.hidden = !hasNews;
   if (!hasNews && state.tab === "noticias") state.tab = "principal";
-  const cocos = cocosValue(stats);
+  const cocos = opsView(stats || {}).cocos;
   const cocosBox = document.getElementById("side-real");
   const cocosEl = document.getElementById("cocos-line");
-  if (cocosBox) cocosBox.hidden = !cocos;
-  if (cocos && cocosEl) {
-    const amount = cocos.usd == null
+  if (cocosBox) cocosBox.hidden = false;
+  if (cocosEl) {
+    const amount = !cocos.present || cocos.usd == null
       ? `<em>sin saldo en este envío</em>`
       : `<b>${esc(money.format(cocos.usd))}</b>`;
-    const when = cocos.when ? `<span class="side-when">${esc(hora(cocos.when))} ART</span>` : "";
-    cocosEl.innerHTML = `<span>${esc(cocos.label)}</span>${amount}${when}`;
+    const when = cocos.present && cocos.when ? `<span class="side-when">${esc(hora(cocos.when))} ART</span>` : "";
+    cocosEl.innerHTML = `<span>${esc(cocos.label || "Cartera Cocos")}</span>${amount}${when}`;
   }
   const scan = document.getElementById("scan-line");
   if (scan) {
@@ -807,45 +770,48 @@ function renderBanner(stats) {
   const banner = document.getElementById("banner");
   if (state.dev) {
     banner.hidden = false;
-    banner.textContent = "Estás viendo el snapshot local, stats_sample.json. No es el bot en vivo.";
+    banner.textContent = "Estás en un modo local sin operaciones publicadas.";
     return;
   }
   if (stats.sample) {
     banner.hidden = false;
-    banner.textContent = stats.note || "Esto es un ejemplo para ver la pantalla. El bot todavía no escribió su estado.";
+    banner.textContent = "Este envío está marcado como ejemplo. No se muestran esas operaciones como si fueran reales.";
     return;
   }
   banner.hidden = true;
 }
 
 function render(stats) {
-  const json = JSON.stringify(stats);
+  const incoming = stats && typeof stats === "object" ? stats : {};
+  const sample = incoming.sample === true;
+  const shown = sample ? window.MemebotOps.blankStats(incoming) : incoming;
+  const json = JSON.stringify(shown);
   const same = json === state.json && state.stats;
-  state.stats = stats;
+  state.stats = shown;
   state.json = json;
-  if (!state.chartChosen) state.chartMode = hasCarteraCurve(stats) ? "cartera" : "todas";
+  if (!state.chartChosen) state.chartMode = "cartera";
   const count = document.getElementById("tab-loteria-count");
-  const openCount = stats.loteria && Array.isArray(stats.loteria.open_bets) ? stats.loteria.open_bets.length : 0;
+  const openCount = shown.loteria && Array.isArray(shown.loteria.open_bets) ? shown.loteria.open_bets.length : 0;
   count.hidden = openCount <= 0;
   count.textContent = openCount ? String(openCount) : "";
   const ccount = document.getElementById("tab-cripto-count");
-  const cOpen = stats.asl && Array.isArray(stats.asl.open) ? (stats.asl.open || []).length : 0;
+  const cOpen = shown.asl && Array.isArray(shown.asl.open) ? (shown.asl.open || []).length : 0;
   ccount.hidden = cOpen <= 0;
   ccount.textContent = cOpen ? String(cOpen) : "";
   const ncount = document.getElementById("tab-noticias-count");
-  const nOpen = stats.noticias_x && Array.isArray(stats.noticias_x.open) ? stats.noticias_x.open.length : 0;
+  const nOpen = shown.noticias_x && Array.isArray(shown.noticias_x.open) ? shown.noticias_x.open.length : 0;
   if (ncount) { ncount.hidden = nOpen <= 0; ncount.textContent = nOpen ? String(nOpen) : ""; }
-  renderLive(stats);
-  renderChrome(stats);
-  renderBanner(stats);
-  renderFoot(stats);
-  const pnl = firstNum((stats.portfolio || stats.summary || {}).pnl_usd);
+  renderLive(shown);
+  renderChrome(shown);
+  renderBanner(shown);
+  renderFoot(shown);
+  const pnl = opsView(shown).principal.pnl;
   document.title = pnl == null ? "Memebot · simulación" : `Memebot · ${signedText(pnl)} USD`;
   if (same) return;
-  paintPanel("panel-principal", "Principal", () => renderPrincipal(stats));
-  paintPanel("panel-loteria", "Lotería", () => renderLoteria(stats));
-  paintPanel("panel-cripto", "Acciones ASL", () => renderAsl(stats));
-  paintPanel("panel-noticias", "Noticias", () => renderNoticias(stats));
+  paintPanel("panel-principal", "Principal", () => renderPrincipal(shown));
+  paintPanel("panel-loteria", "Lotería", () => renderLoteria(shown));
+  paintPanel("panel-cripto", "Acciones ASL", () => renderAsl(shown));
+  paintPanel("panel-noticias", "Noticias", () => renderNoticias(shown));
   applyTab();
   document.querySelectorAll(".chart-host").forEach((host) => {
     if (!host.dataset.obs) {
@@ -913,7 +879,7 @@ function pctOf(v, total) {
 }
 
 // ---------- PRINCIPAL ----------
-function stratStrip(book) {
+function stratStrip(book, ledgers) {
   const bys = book && Array.isArray(book.by_strategy) ? book.by_strategy.slice() : [];
   if (!bys.length) return "";
   bys.sort((a, b) => Number(b && b.strategy === "cartera_s300") - Number(a && a.strategy === "cartera_s300"));
@@ -927,11 +893,16 @@ function stratStrip(book) {
     const n = Number(b.trades) || 0;
     const sub0 = n ? desc : `${desc}${desc ? " · " : ""}sin cierres aún`;
     const sub = b.cut_paused ? `pausada por límite · ${sub0}` : sub0;
+    const led = (ledgers || []).find((row) => row && row.name === b.strategy);
+    const hist = led && Number(led.trades) !== n
+      ? `<div class="strip-row small"><span class="muted">Historial ${esc(signedText(led.pnl))} · ${esc(led.trades)} cierres, fuera de esta versión</span></div>`
+      : "";
     return `<div class="strip-cell${main ? " is-main" : ""}">
       <p class="strip-name"><span class="mono">${esc(name)}</span>${main ? ` <span class="pill book">principal</span>` : ""} <span class="muted">${esc(sub)}</span></p>
       <div class="strip-row"><strong class="num-lg ${toneClass(p)}">${esc(signedText(p))}</strong><span class="muted mono">hoy ${esc(signedText(t))}</span></div>
       <div class="bar"><i style="width:${(n ? (Number(b.win_rate) || 0) * 100 : 0).toFixed(1)}%"></i></div>
       <div class="strip-row small"><span>${esc(n)} cierres · ${esc(ratioPct(b.win_rate))} aciertos</span><span>${esc(b.open_positions ?? 0)} abiertas</span></div>
+      ${hist}
     </div>`;
   }).join("")}</div>`;
 }
@@ -1046,8 +1017,8 @@ document.addEventListener("click", (event) => {
   const c = row.firstElementChild; c.textContent = c.textContent.replace(/^[▸▾]/, open ? "▾" : "▸");
 });
 function labTablePrincipal(stats, bookPnl) {
-  const inBook = bookStrategyNames(stats.portfolio);
-  const ordered = orderedStrategies((stats.strategies || []).filter((s) => !inBook.has(s.name)));
+  const inBook = new Set(opsView(stats).principal.names);
+  const ordered = orderedStrategies(window.MemebotOps.labStrategies(stats));
   const row = (s, i) => {
     const jup = firstNum(s.pnl_jup_usd);
     const vs = bookPnl == null ? null : (Number(s.pnl_usd) || 0) - bookPnl;
@@ -1070,62 +1041,69 @@ function labTablePrincipal(stats, bookPnl) {
   </section>`;
 }
 function renderPrincipal(stats) {
-  const book = stats.portfolio || stats.summary || {};
-  const isBook = Boolean(stats.portfolio);
-  const opens = Array.isArray(stats.open_positions) ? stats.open_positions : [];
-  const bookOpen = Number(book.open_positions) || 0;
-  const maxOpen = Number(book.max_open) || 5;
-  const gross = firstNum(book.gross_usd);
-  const pnl = firstNum(book.pnl_usd);
+  const view = opsView(stats);
+  const p = view.principal;
+  const isBook = p.names.length > 0;
+  const opens = p.positions;
+  const bookOpen = opens.length ? opens.length : (Number(p.openPositions) || 0);
+  const maxOpen = p.maxOpen == null ? null : p.maxOpen;
+  const nBys = Math.max(p.rows.length, 1);
+  const slotMax = maxOpen == null ? Math.max(bookOpen, 1) : maxOpen * nBys;
+  const gross = p.gross;
+  const pnl = p.pnl;
   const costs = gross != null && pnl != null ? pnl - gross : null;
-  const unreal = firstNum(book.unrealized_usd);
-  const recent = isBook && Array.isArray(book.recent) ? book.recent : (stats.recent_trades || []);
+  const unreal = p.unrealized;
+  const recent = p.recent;
   const shown = state.tradesOpen ? recent : recent.slice(0, 6);
-  const nBys = Array.isArray(book.by_strategy) ? book.by_strategy.length : 1;
-  const ver = book.version ? ` · ${esc(book.version)}` : (stats.version ? ` · v${esc(stats.version)}` : "");
-  const sinceBits = book.family_since
-    ? ` · reglas desde ${esc(hora(book.family_since))}`
+  const ver = p.version ? ` · ${esc(p.version)}` : (stats.version ? ` · v${esc(stats.version)}` : "");
+  const sinceBits = p.familySince
+    ? ` · reglas desde ${esc(hora(p.familySince))}`
     : stats.since ? ` · desde ${esc(hora(stats.since))}` : "";
-  const verBlob = `${book.version || ""} ${book.family || ""} ${stats.version || ""}`;
-  const s300Note = (bookStrategyNames(book).has("cartera_s300") || /s300|5\.36/i.test(verBlob))
-    ? `<p>Principal de memes: <span class="mono">cartera_s300</span>, 5 USD por entrada. No entra si la latencia no cierra o si el impacto de Jupiter veta la compra (v5.36).</p>`
+  const sizeTxt = p.sizeUsd == null ? "—" : `${numFmt.format(p.sizeUsd)} USD`;
+  const maxTxt = maxOpen == null ? "—" : String(maxOpen);
+  const s300Note = p.names.includes("cartera_s300")
+    ? `<p>Principal de memes: <span class="mono">cartera_s300</span>${p.sizeUsd == null ? "" : `, ${esc(numFmt.format(p.sizeUsd))} USD por entrada`}. No entra si la latencia no cierra o si el impacto de Jupiter veta la compra (v5.36). Los labs no se suman acá.</p>`
     : "";
+  const ledgerNote = (p.ledgers || []).filter((row) => row.trades != null && row.trades !== p.trades).map((row) => (
+    `<p>Historial de <span class="mono">${esc(row.name)}</span>: ${esc(signedText(row.pnl))} USD en ${esc(row.trades)} cierres. Queda fuera del total de esta versión.</p>`
+  )).join("");
   return `${pageHead("Principal", `Cartera paper${ver}${sinceBits}`)}
     <section class="sec hero-sec">
       <div class="hero-main">
-        <p class="kick">${isBook ? "Cartera" : "Total"} · paper${book.version ? ` · ${esc(book.version)}` : ""}</p>
+        <p class="kick">${isBook ? "Cartera" : "Sin cartera"} · paper${p.version ? ` · ${esc(p.version)}` : ""}</p>
         ${heroNum(pnl, "USD")}
         <div class="minis">
           ${gross == null ? "" : mini("Bruto, sin costos", esc(signedText(gross)), toneClass(gross))}
           ${costs == null ? "" : mini("Costos Solana", esc(signedText(costs)), toneClass(costs))}
-          ${mini("Por entrada", `${esc(numFmt.format(firstNum(stats.size_usd) ?? 5))} USD`)}
-          ${mini("Tope abiertas", `${esc(maxOpen)}${nBys > 1 ? ` <small class="muted">por estrategia</small>` : ""}`)}
+          ${mini("Por entrada", sizeTxt)}
+          ${mini("Tope abiertas", `${esc(maxTxt)}${nBys > 1 && maxOpen != null ? ` <small class="muted">por estrategia</small>` : ""}`)}
         </div>
         <details class="fine" id="fine"${state.fineOpen ? " open" : ""}><summary>Reglas y versiones</summary>
           ${s300Note}
+          ${ledgerNote}
           <p>${sinceLine(stats, stats.portfolio)}</p>
-          ${nBys > 1 ? `<p>La cartera tiene ${esc(nBys)} estrategias. Cada una: máx. ${esc(maxOpen)} abiertas, ${esc(numFmt.format(firstNum(stats.size_usd) ?? 5))} USD por compra, y cada moneda la compra una sola.</p>` : ""}
+          ${p.rows.length > 1 ? `<p>La cartera tiene ${esc(p.rows.length)} estrategias. Cada una: máx. ${esc(maxTxt)} abiertas${p.sizeUsd == null ? "" : `, ${esc(numFmt.format(p.sizeUsd))} USD por compra`}, y cada moneda la compra una sola.</p>` : ""}
           ${finePrint(stats, stats.portfolio, stats.summary || {}).replace(/^<details[^>]*><summary>[^<]*<\/summary>/, "").replace(/<\/details>$/, "")}
           ${versionsHtml(stats.portfolio_versions, "port")}
         </details>
       </div>
       <div class="cells c2">
-        ${cell("Hoy", esc(signedText(book.pnl_today_usd)), `${esc(book.trades_today ?? 0)} cierres desde la medianoche`, toneClass(book.pnl_today_usd))}
-        ${cell("Aciertos", esc(ratioPct(book.win_rate)), `${esc(book.wins ?? 0)} de ${esc(book.trades ?? 0)}`)}
-        ${cell("Cierres", esc(book.trades ?? 0), isBook ? "de la cartera" : "de las estrategias")}
+        ${cell("Hoy", esc(signedText(p.pnlToday)), `${esc(p.tradesToday ?? 0)} cierres desde la medianoche`, toneClass(p.pnlToday))}
+        ${cell("Aciertos", esc(ratioPct(p.winRate)), `${esc(p.wins ?? 0)} de ${esc(p.trades ?? 0)}`)}
+        ${cell("Cierres", esc(p.trades ?? 0), isBook ? "de la cartera" : "sin cartera en este envío")}
         ${cell("Abiertas", esc(bookOpen), bookOpen ? (unreal == null ? "sin precio fresco" : `${esc(signedText(unreal))} USD en juego`) : "nada en juego")}
       </div>
     </section>
-    ${stratStrip(stats.portfolio)}
+    ${stratStrip({ by_strategy: p.rows }, p.ledgers)}
     ${chartSection("principal", "PnL por hora", "Solo la cartera, hora ART. El laboratorio no entra.")}
     <div class="split">
       <section class="sec">
-        <div class="sec-head"><h2>Posiciones abiertas</h2><div class="sec-right mono muted">${esc(bookOpen)} / ${esc(maxOpen * nBys)}</div></div>
-        ${slotBars(bookOpen, maxOpen * nBys)}
+        <div class="sec-head"><h2>Posiciones abiertas</h2><div class="sec-right mono muted">${esc(bookOpen)} / ${esc(slotMax)}</div></div>
+        ${slotBars(bookOpen, slotMax)}
         ${opens.length ? `<div class="olist">${openRowsPrincipal(opens)}</div>` : `<div class="empty"><strong>Nada abierto</strong><p>Cuando entre a un token, lo vas a ver acá.</p></div>`}
       </section>
       <section class="sec">
-        <div class="sec-head"><h2>Últimos cierres</h2><p>${isBook ? "De la cartera, los más nuevos primero." : "Los más nuevos primero."}</p>
+        <div class="sec-head"><h2>Últimos cierres</h2><p>De la cartera, los más nuevos primero. El laboratorio no entra.</p>
           ${recent.length > 6 ? `<div class="sec-right"><button class="link-btn" type="button" data-expand="trades">${state.tradesOpen ? "Ver menos" : `Ver los ${recent.length} cierres`}</button></div>` : ""}</div>
         ${recent.length ? closesTable(shown) : `<div class="empty"><strong>Todavía no cerró ninguna</strong><p>Cuando venda, el cierre aparece acá.</p></div>`}
       </section>
@@ -1874,11 +1852,6 @@ function hideTip(host) {
 }
 
 async function loadStats(token) {
-  if (state.dev) {
-    const response = await fetch("/stats_sample.json", { cache: "no-store" });
-    if (!response.ok) throw new Error(`No pude leer stats_sample.json (${response.status}).`);
-    return response.json();
-  }
   if (REMOTE) {
     const response = await fetch(`${CFG.supabaseUrl.replace(/\/$/, "")}/rest/v1/rpc/get_stats`, {
       method: "POST",
@@ -1889,15 +1862,16 @@ async function loadStats(token) {
       },
       body: JSON.stringify({ tok: token }),
     });
-    if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
-    const body = await response.json();
-    if (!body) throw new Error("Token incorrecto o el bot todavía no publicó.");
-    return body;
+    const body = await response.json().catch(() => null);
+    const result = window.MemebotOps.readStatsResult({ ok: response.ok, status: response.status, body });
+    if (result.error) throw new Error(result.error);
+    return result.stats;
   }
   const response = await fetch(`/${encodeURIComponent(token)}/stats.json`, { cache: "no-store" });
-  if (response.status === 404) throw new Error("Token incorrecto.");
-  if (!response.ok) throw new Error(`No pude leer el estado (${response.status}).`);
-  return response.json();
+  const body = await response.json().catch(() => null);
+  const result = window.MemebotOps.readStatsResult({ ok: response.ok, status: response.status, body });
+  if (result.error) throw new Error(result.error);
+  return result.stats;
 }
 
 function showGate() {
@@ -1907,6 +1881,8 @@ function showGate() {
   document.getElementById("tabs").hidden = true;
   document.getElementById("logout").hidden = true;
   document.getElementById("live").hidden = true;
+  const cocosBox = document.getElementById("side-real");
+  if (cocosBox) cocosBox.hidden = true;
 }
 
 function showApp() {
@@ -1978,16 +1954,10 @@ function start(token) {
 }
 
 function startDev() {
-  state.dev = true;
-  state.json = "";
-  const url = new URL(location.href);
-  url.searchParams.set("dev", "1");
-  if (state.tab !== "principal") url.searchParams.set("tab", state.tab);
-  history.replaceState(null, "", `${url.pathname}${url.search}`);
-  setStatus("Cargando…", false);
-  refresh("", false);
+  state.dev = false;
   clearInterval(timer);
-  timer = setInterval(() => refresh("", true), 30000);
+  showGate();
+  setStatus("No hay operaciones de ejemplo. Este tablero solo muestra datos reales.", true);
 }
 
 document.getElementById("gate").addEventListener("submit", (event) => {
@@ -2084,7 +2054,7 @@ document.addEventListener("toggle", (event) => {
 
 if (onLocalHost) document.getElementById("local-hint").hidden = false;
 
-window.__mb = { bucketEquity, bucketTrades, artParts, render, state, principalView, loteriaView };
+window.__mb = { bucketEquity, bucketTrades, artParts, render, state, principalView, loteriaView, opsView };
 
 if (state.dev) startDev();
 else {

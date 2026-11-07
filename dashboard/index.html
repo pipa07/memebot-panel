@@ -66,7 +66,7 @@
           </label>
           <button class="btn-primary" type="submit">Entrar</button>
           <button class="btn-ghost btn-block" id="dev-link" type="button">Ver el snapshot local</button>
-          <p class="hint" id="local-hint" hidden>En esta máquina no se consulta Supabase. Con un token se lee <span class="mono">/token/stats.json</span>. El botón de arriba abre el ejemplo.</p>
+          <p class="hint" id="local-hint" hidden>En esta máquina no se consulta Supabase. Con un token se lee <span class="mono">/token/stats.json</span>. No hay operaciones de ejemplo.</p>
           <p class="error" id="gate-error" role="status"></p>
         </form>
 
@@ -85,6 +85,7 @@
   <div class="toast" id="toast" role="status" hidden></div>
   <noscript><p class="banner wrap">Necesitás JavaScript para ver el tablero.</p></noscript>
   <script src="config.js"></script>
+  <script src="ops.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
