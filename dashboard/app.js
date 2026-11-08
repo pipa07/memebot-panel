@@ -58,10 +58,19 @@ const FRESH = new Set(["solid_antirug", "solid_runner", "solid_bundlefilter", "s
 const WD = { Sun: "dom", Mon: "lun", Tue: "mar", Wed: "mié", Thu: "jue", Fri: "vie", Sat: "sáb" };
 
 const TABS = ["principal", "loteria", "noticias", "cripto"];
+function loteriaOn() {
+  return window.MemebotOps.featureEnabled("loteria");
+}
+function askedTab() {
+  const asked = params.get("tab");
+  if (!TABS.includes(asked)) return "principal";
+  if (asked === "loteria" && !loteriaOn()) return "principal";
+  return asked;
+}
 const state = {
   stats: null,
   json: "",
-  tab: TABS.includes(params.get("tab")) ? params.get("tab") : "principal",
+  tab: askedTab(),
   chartMode: "cartera",
   chartChosen: false,
   tradesOpen: false,
@@ -685,13 +694,7 @@ function bookStrategyNames(book) {
 }
 
 function sectionPnl(stats) {
-  const view = opsView(stats || {});
-  return {
-    principal: view.principal.pnl,
-    loteria: view.loteriaPnl,
-    cripto: view.aslPnl,
-    noticias: view.noticiasPnl,
-  };
+  return window.MemebotOps.displaySections(opsView(stats || {})).pnl;
 }
 
 function pageHead(title, sub) {
@@ -711,6 +714,9 @@ function renderLive(stats) {
 }
 
 function renderChrome(stats) {
+  const lotTab = document.getElementById("tab-loteria");
+  if (lotTab) lotTab.hidden = !loteriaOn();
+  if (!loteriaOn() && state.tab === "loteria") state.tab = "principal";
   const pnl = sectionPnl(stats);
   for (const name of ["principal", "loteria", "cripto", "noticias"]) {
     const el = document.getElementById(`nav-pnl-${name}`);
@@ -791,9 +797,11 @@ function render(stats) {
   state.json = json;
   if (!state.chartChosen) state.chartMode = "cartera";
   const count = document.getElementById("tab-loteria-count");
-  const openCount = shown.loteria && Array.isArray(shown.loteria.open_bets) ? shown.loteria.open_bets.length : 0;
-  count.hidden = openCount <= 0;
-  count.textContent = openCount ? String(openCount) : "";
+  const openCount = loteriaOn() && shown.loteria && Array.isArray(shown.loteria.open_bets) ? shown.loteria.open_bets.length : 0;
+  if (count) {
+    count.hidden = !loteriaOn() || openCount <= 0;
+    count.textContent = openCount ? String(openCount) : "";
+  }
   const ccount = document.getElementById("tab-cripto-count");
   const cOpen = shown.asl && Array.isArray(shown.asl.open) ? (shown.asl.open || []).length : 0;
   ccount.hidden = cOpen <= 0;
@@ -809,7 +817,12 @@ function render(stats) {
   document.title = pnl == null ? "Memebot · simulación" : `Memebot · ${signedText(pnl)} USD`;
   if (same) return;
   paintPanel("panel-principal", "Principal", () => renderPrincipal(shown));
-  paintPanel("panel-loteria", "Lotería", () => renderLoteria(shown));
+  const lotPanel = document.getElementById("panel-loteria");
+  if (loteriaOn()) paintPanel("panel-loteria", "Lotería", () => renderLoteria(shown));
+  else if (lotPanel) {
+    lotPanel.hidden = true;
+    lotPanel.innerHTML = "";
+  }
   paintPanel("panel-cripto", "Acciones ASL", () => renderAsl(shown));
   paintPanel("panel-noticias", "Noticias", () => renderNoticias(shown));
   applyTab();
@@ -1631,8 +1644,11 @@ function renderCripto(stats) {
 }
 
 function applyTab() {
+  if (!loteriaOn() && state.tab === "loteria") state.tab = "principal";
+  const lotTab = document.getElementById("tab-loteria");
+  if (lotTab) lotTab.hidden = !loteriaOn();
   TABS.forEach((name) => {
-    const on = state.tab === name;
+    const on = state.tab === name && (name !== "loteria" || loteriaOn());
     const tab = document.getElementById(`tab-${name}`);
     tab.setAttribute("aria-selected", String(on));
     tab.tabIndex = on ? 0 : -1;
@@ -1641,6 +1657,7 @@ function applyTab() {
 }
 
 function selectTab(name) {
+  if (name === "loteria" && !loteriaOn()) name = "principal";
   state.tab = TABS.includes(name) ? name : "principal";
   applyTab();
   const host = document.getElementById(state.tab === "loteria" ? "chart-loteria" : "chart-principal");

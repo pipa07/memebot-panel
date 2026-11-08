@@ -7,6 +7,35 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   root.MemebotOps = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  // Lotería queda fuera del panel hasta nuevo aviso.
+  // Siguen el renderer (renderLoteria / loteriaView en app.js), mapLoteriaPnl
+  // y el campo stats.loteria del snapshot. No se borra data ni se toca el bot.
+  // Para restaurarla: poné loteria en true. Vuelven el tab, su PnL y el panel,
+  // en el mismo lugar del menú. No hace falta otro cambio.
+  const FEATURES = { loteria: false };
+  const NAV = ["principal", "loteria", "cripto", "noticias"];
+
+  function featureEnabled(name) {
+    return FEATURES[name] === true;
+  }
+
+  function visibleNav() {
+    return NAV.filter((name) => name !== "loteria" || featureEnabled("loteria"));
+  }
+
+  function displaySections(view) {
+    const safe = view && typeof view === "object" ? view : {};
+    return {
+      tabs: visibleNav(),
+      pnl: {
+        principal: safe.principal ? safe.principal.pnl : null,
+        loteria: featureEnabled("loteria") ? (safe.loteriaPnl ?? null) : null,
+        cripto: safe.aslPnl ?? null,
+        noticias: safe.noticiasPnl ?? null,
+      },
+    };
+  }
+
   const ART = "America/Argentina/Buenos_Aires";
   const artDayFmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: ART,
@@ -370,6 +399,11 @@ function viewForRender(stats, now) {
 
   return {
     ART,
+    FEATURES,
+    featureEnabled,
+    visibleNav,
+    displaySections,
+    mapLoteriaPnl,
     num,
     escapeHtml,
     isLabName,

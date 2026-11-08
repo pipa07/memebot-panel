@@ -255,3 +255,31 @@ test("the dashboard source does not ship sample trades", () => {
   assert.match(app, /MemebotOps/);
   assert.match(html, /ops\.js/);
 });
+
+test("loteria data stays mapped and is omitted from the visible nav", () => {
+  const view = ops.mapOperations(liveSnapshot(), NOW);
+  assert.equal(view.loteriaPnl, -31.34);
+  assert.equal(ops.FEATURES.loteria, false);
+  assert.equal(ops.featureEnabled("loteria"), false);
+  const shown = ops.displaySections(view);
+  assert.equal(shown.pnl.loteria, null);
+  assert.deepEqual(shown.tabs, ["principal", "cripto", "noticias"]);
+  assert.equal(shown.pnl.principal, 0);
+  assert.equal(shown.pnl.noticias, -28.89);
+  assert.ok(Math.abs(shown.pnl.cripto - (-15.93)) < 0.001);
+  assert.notEqual(shown.pnl.principal, view.loteriaPnl);
+  ops.FEATURES.loteria = true;
+  try {
+    const restored = ops.displaySections(view);
+    assert.equal(restored.pnl.loteria, -31.34);
+    assert.deepEqual(restored.tabs, ["principal", "loteria", "cripto", "noticias"]);
+  } finally {
+    ops.FEATURES.loteria = false;
+  }
+  const app = readFileSync(new URL("../dashboard/app.js", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../dashboard/index.html", import.meta.url), "utf8");
+  assert.match(app, /function renderLoteria/);
+  assert.match(app, /function loteriaView/);
+  assert.match(html, /id="tab-loteria"[^>]*hidden/);
+  assert.match(html, /id="panel-loteria"/);
+});

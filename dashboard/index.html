@@ -30,7 +30,8 @@
           <span class="tab-label">Principal</span>
           <span class="tab-pnl" id="nav-pnl-principal">—</span>
         </button>
-        <button type="button" role="tab" id="tab-loteria" data-tab="loteria" aria-controls="panel-loteria" aria-selected="false" tabindex="-1">
+        <!-- Lotería apagada. Restaurar: FEATURES.loteria = true en ops.js. El renderer y stats.loteria siguen. -->
+        <button type="button" role="tab" id="tab-loteria" data-tab="loteria" data-feature="loteria" aria-controls="panel-loteria" aria-selected="false" tabindex="-1" hidden>
           <span class="tab-label">Lotería <span class="tab-count" id="tab-loteria-count" hidden></span></span>
           <span class="tab-pnl" id="nav-pnl-loteria">—</span>
         </button>
