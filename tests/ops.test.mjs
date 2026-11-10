@@ -216,8 +216,10 @@ test("cocos balance is only the stored amount", () => {
   assert.equal(present.present, true);
   assert.equal(present.usd, 1200.5);
   assert.equal(present.operations.length, 1);
-  const manual = ops.mapCocos({ real: { balance_usd: 0 } });
-  assert.equal(manual.usd, 0);
+  const notCocos = ops.mapCocos({ real: { balance_usd: 0 } });
+  assert.equal(notCocos.present, false);
+  assert.equal(notCocos.usd, null);
+  assert.equal(ops.mapCocos({ cocos: { usd: 0 } }).usd, 0);
 });
 
 test("today follows America/Argentina/Buenos_Aires when the snapshot has no today field", () => {
@@ -263,7 +265,8 @@ test("loteria data stays mapped and is omitted from the visible nav", () => {
   assert.equal(ops.featureEnabled("loteria"), false);
   const shown = ops.displaySections(view);
   assert.equal(shown.pnl.loteria, null);
-  assert.deepEqual(shown.tabs, ["principal", "cripto", "noticias"]);
+  assert.deepEqual(shown.tabs, ["principal", "cripto", "noticias", "cocos"]);
+  assert.equal(shown.pnl.cocos, null);
   assert.equal(shown.pnl.principal, 0);
   assert.equal(shown.pnl.noticias, -28.89);
   assert.ok(Math.abs(shown.pnl.cripto - (-15.93)) < 0.001);
@@ -272,7 +275,7 @@ test("loteria data stays mapped and is omitted from the visible nav", () => {
   try {
     const restored = ops.displaySections(view);
     assert.equal(restored.pnl.loteria, -31.34);
-    assert.deepEqual(restored.tabs, ["principal", "loteria", "cripto", "noticias"]);
+    assert.deepEqual(restored.tabs, ["principal", "loteria", "cripto", "noticias", "cocos"]);
   } finally {
     ops.FEATURES.loteria = false;
   }
@@ -282,4 +285,9 @@ test("loteria data stays mapped and is omitted from the visible nav", () => {
   assert.match(app, /function loteriaView/);
   assert.match(html, /id="tab-loteria"[^>]*hidden/);
   assert.match(html, /id="panel-loteria"/);
+  assert.equal(html.includes("REAL · MANUAL"), false);
+  assert.equal(html.includes("carga manual"), false);
+  assert.match(html, /id="tab-cocos"/);
+  assert.equal(ops.mapCocos({ cocos: null }).usd, null);
+  assert.equal(ops.mapCocos({ cocos: null }).holdings.length, 0);
 });

@@ -57,7 +57,7 @@ const PLAIN = {
 const FRESH = new Set(["solid_antirug", "solid_runner", "solid_bundlefilter", "solid_rc_strict", "solid_devsell_exit", "solid_shield", "solid_shield_runner", "solid_ptp10_be", "solid_ptp20_be"]);
 const WD = { Sun: "dom", Mon: "lun", Tue: "mar", Wed: "mié", Thu: "jue", Fri: "vie", Sat: "sáb" };
 
-const TABS = ["principal", "loteria", "noticias", "cripto"];
+const TABS = ["principal", "loteria", "noticias", "cripto", "cocos"];
 function loteriaOn() {
   return window.MemebotOps.featureEnabled("loteria");
 }
@@ -697,8 +697,9 @@ function sectionPnl(stats) {
   return window.MemebotOps.displaySections(opsView(stats || {})).pnl;
 }
 
-function pageHead(title, sub) {
-  return `<header class="page-head"><div><h1>${esc(title)}</h1><p>${sub}</p></div><p class="badge-paper">PAPER · sin dinero real</p></header>`;
+function pageHead(title, sub, badgeHtml) {
+  const badge = badgeHtml || `<p class="badge-paper">PAPER · sin dinero real</p>`;
+  return `<header class="page-head"><div><h1>${esc(title)}</h1><p>${sub}</p></div>${badge}</header>`;
 }
 
 function renderLive(stats) {
@@ -718,7 +719,7 @@ function renderChrome(stats) {
   if (lotTab) lotTab.hidden = !loteriaOn();
   if (!loteriaOn() && state.tab === "loteria") state.tab = "principal";
   const pnl = sectionPnl(stats);
-  for (const name of ["principal", "loteria", "cripto", "noticias"]) {
+  for (const name of ["principal", "loteria", "cripto", "noticias", "cocos"]) {
     const el = document.getElementById(`nav-pnl-${name}`);
     if (!el) continue;
     const n = pnl[name];
@@ -729,17 +730,6 @@ function renderChrome(stats) {
   const hasNews = Boolean(stats.noticias_x && typeof stats.noticias_x === "object");
   if (newsTab) newsTab.hidden = !hasNews;
   if (!hasNews && state.tab === "noticias") state.tab = "principal";
-  const cocos = opsView(stats || {}).cocos;
-  const cocosBox = document.getElementById("side-real");
-  const cocosEl = document.getElementById("cocos-line");
-  if (cocosBox) cocosBox.hidden = false;
-  if (cocosEl) {
-    const amount = !cocos.present || cocos.usd == null
-      ? `<em>sin saldo en este envío</em>`
-      : `<b>${esc(money.format(cocos.usd))}</b>`;
-    const when = cocos.present && cocos.when ? `<span class="side-when">${esc(hora(cocos.when))} ART</span>` : "";
-    cocosEl.innerHTML = `<span>${esc(cocos.label || "Cartera Cocos")}</span>${amount}${when}`;
-  }
   const scan = document.getElementById("scan-line");
   if (scan) {
     scan.textContent = stats.last_scan_at
@@ -825,6 +815,7 @@ function render(stats) {
   }
   paintPanel("panel-cripto", "Acciones ASL", () => renderAsl(shown));
   paintPanel("panel-noticias", "Noticias", () => renderNoticias(shown));
+  paintPanel("panel-cocos", "Cartera Cocos", () => renderCocos(shown));
   applyTab();
   document.querySelectorAll(".chart-host").forEach((host) => {
     if (!host.dataset.obs) {
@@ -1411,6 +1402,109 @@ function renderNoticias(stats) {
     <section class="sec"><div class="sec-head"><h2>Posteos analizados</h2></div><p class="small muted">Todo lo que el bot leyó y por qué compró o no. Telegram solo avisa compras y ventas.</p>${anRows ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Hora (ART)</th><th>Post</th><th>Decisión</th></tr></thead><tbody>${anRows}</tbody></table></div>` : `<p class="muted">Todavía no hay posteos analizados en este envío.</p>`}</section>`;
 }
 
+const arsFmt = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
+function arsText(value) {
+  const n = firstNum(value);
+  if (n == null) return "—";
+  const sign = n > 0 ? "+" : n < 0 ? "−" : "";
+  return `${sign}$ ${arsFmt.format(Math.abs(Math.round(n)))}`;
+}
+function renderCocos(stats) {
+  const c = opsView(stats).cocos;
+  const head = pageHead(
+    "Cartera Cocos",
+    "Sección independiente, aparte del paper.",
+    `<p class="badge-cocos">Cocos</p>`,
+  );
+  const hasBook = c.present && (
+    c.valorizado != null || c.usd != null || c.holdings.length || c.operations.length || c.equity.length
+  );
+  const mep = c.mep == null ? "" : `<p class="cocos-mep">Dólar MEP <b>${esc(arsFmt.format(c.mep))}</b></p>`;
+  if (!hasBook) {
+    return `${head}${mep}<section class="sec"><div class="empty"><strong>Sin datos de Cocos</strong><p>Este envío no trae saldo, tenencias ni operaciones. No se muestran ejemplos.</p></div></section>`;
+  }
+  const valor = c.valorizado != null ? c.valorizado : c.usd;
+  const kpi = (label, value, sub) => `<div class="cell"><span class="lbl">${esc(label)}</span><strong class="num-xl ${toneClass(value)}">${value == null ? "—" : esc(arsText(value))}</strong>${sub ? `<em>${esc(sub)}</em>` : ""}</div>`;
+  const weights = c.holdings.map((row) => {
+    const value = firstNum(row.valorizado, row.value, row.valor);
+    return { row, value };
+  }).filter((item) => item.value != null && item.value > 0);
+  const totalW = weights.reduce((sum, item) => sum + item.value, 0);
+  const comp = totalW > 0 ? `<div class="comp"><div class="comp-bar">${weights.map((item) => {
+    const name = item.row.especie || item.row.ticker || item.row.sym || "—";
+    const pct = (item.value / totalW) * 100;
+    return `<i style="width:${pct.toFixed(2)}%" title="${esc(name)}"></i>`;
+  }).join("")}</div><p class="muted small">${weights.map((item) => {
+    const name = item.row.especie || item.row.ticker || item.row.sym || "—";
+    return `${esc(name)} ${esc(numFmt.format((item.value / totalW) * 100))} %`;
+  }).join(" · ")}</p></div>` : `<div class="empty"><strong>Sin composición</strong><p>No hay tenencias valorizadas en este envío.</p></div>`;
+  const holdRows = c.holdings.map((row) => {
+    const name = row.especie || row.ticker || row.sym || "—";
+    const qty = row.cantidad != null ? row.cantidad : row.qty;
+    const avg = firstNum(row.precio_promedio, row.avg);
+    const px = firstNum(row.precio, row.px, row.precio_hoy);
+    const val = firstNum(row.valorizado, row.value, row.valor);
+    const pnl = firstNum(row.ganancia, row.pnl, row.unrealized);
+    return `<tr><td><strong class="mono">${esc(name)}</strong></td><td class="num mono">${esc(qty ?? "—")}</td><td class="num mono">${avg == null ? "—" : esc(arsText(avg))}</td><td class="num mono">${px == null ? "—" : esc(arsText(px))}</td><td class="num mono">${val == null ? "—" : esc(arsText(val))}</td><td class="num mono ${toneClass(pnl)}">${pnl == null ? "—" : esc(arsText(pnl))}</td></tr>`;
+  }).join("");
+  const opRows = c.operations.map((row) => {
+    const when = row.ts || row.fecha || row.at || "";
+    const tipo = row.tipo || row.side || "—";
+    const name = row.especie || row.ticker || row.sym || "—";
+    const qty = row.cantidad != null ? row.cantidad : row.qty;
+    const px = firstNum(row.precio, row.px);
+    return `<tr><td class="mono">${esc(when ? hora(when) : "—")}</td><td>${esc(tipo)}</td><td class="mono">${esc(name)}</td><td class="num mono">${esc(qty ?? "—")}</td><td class="num mono">${px == null ? "—" : esc(arsText(px))}</td></tr>`;
+  }).join("");
+  const sellRows = c.sells.map((row) => {
+    const name = row.especie || row.ticker || row.sym || "—";
+    const pnl = firstNum(row.ganancia, row.pnl, row.realized);
+    return `<tr><td class="mono">${esc(name)}</td><td class="num mono ${toneClass(pnl)}">${pnl == null ? "—" : esc(arsText(pnl))}</td></tr>`;
+  }).join("");
+  const curve = c.equity.length ? "La curva usa los puntos que trajo el envío." : "Este envío no trae la curva de evolución.";
+  return `${head}${mep}
+    <section class="sec hero-sec">
+      <div class="hero-main">
+        <p class="kick">Valorizado hoy</p>
+        ${heroNum(valor, "ARS")}
+        ${c.when ? `<p class="muted small">${esc(hora(c.when))} ART</p>` : ""}
+      </div>
+      <div class="cells c2">
+        ${kpi("Hoy", c.hoy, "variación del día")}
+        ${kpi("Invertido", c.invertido, "costo informado")}
+        ${kpi("Ganancia sin vender", c.sinVender, "")}
+        ${kpi("Ganancia realizada", c.realizada, "")}
+      </div>
+    </section>
+    <section class="sec"><div class="sec-head"><h2>Evolución</h2><p>${esc(curve)}</p></div>
+      ${c.equity.length ? `<div id="chart-cocos" class="chart-host"></div>` : `<div class="empty"><strong>Sin curva</strong><p>Cuando el envío traiga puntos, aparecen acá.</p></div>`}
+    </section>
+    <section class="sec"><div class="sec-head"><h2>Composición</h2></div>${comp}</section>
+    <section class="sec"><div class="sec-head"><h2>Tenencias</h2><p>${esc(c.holdings.length)} especies</p></div>
+      ${holdRows ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Especie</th><th class="num">Cantidad</th><th class="num">Precio promedio</th><th class="num">Precio hoy</th><th class="num">Valorizado</th><th class="num">Ganancia</th></tr></thead><tbody>${holdRows}</tbody></table></div>` : `<div class="empty"><strong>Sin tenencias</strong><p>No hay especies en este envío.</p></div>`}
+    </section>
+    <section class="sec"><div class="sec-head"><h2>Historial</h2><p>${esc(c.operations.length)} operaciones</p></div>
+      ${opRows ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Cuándo</th><th>Tipo</th><th>Especie</th><th class="num">Cantidad</th><th class="num">Precio</th></tr></thead><tbody>${opRows}</tbody></table></div>` : `<div class="empty"><strong>Sin operaciones</strong><p>No hay compras ni ventas informadas.</p></div>`}
+    </section>
+    <section class="sec"><div class="sec-head"><h2>Ganancias realizadas</h2><p>Solo las que vienen en el envío.</p></div>
+      ${sellRows ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Especie</th><th class="num">Resultado</th></tr></thead><tbody>${sellRows}</tbody></table></div>` : `<div class="empty"><strong>Sin ventas realizadas</strong><p>Este envío no detalla ganancias cobradas.</p></div>`}
+    </section>`;
+}
+
+function applyTheme(name) {
+  const theme = name === "claro" ? "claro" : "oscuro";
+  document.documentElement.dataset.theme = theme;
+  document.querySelectorAll("[data-theme]").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.theme === theme));
+  });
+  try { localStorage.setItem("memebot_tema", theme); } catch (error) { /* el tema igual queda en la página */ }
+}
+document.addEventListener("click", (event) => {
+  const themeBtn = event.target.closest("[data-theme]");
+  if (!themeBtn) return;
+  applyTheme(themeBtn.dataset.theme);
+});
+try { applyTheme(localStorage.getItem("memebot_tema") || "oscuro"); } catch (error) { applyTheme("oscuro"); }
+
 // ASL acciones 45' v2: cartera simulada (papel)
 function renderAsl(stats) {
   const a = stats.asl;
@@ -1418,7 +1512,7 @@ function renderAsl(stats) {
   if (!a || !a.summary) return `${pageHead("Acciones ASL", "Cartera simulada, sin plata real.")}<section class="sec"><p class="kick">Acciones ASL · cartera simulada</p><p class="muted">Todavía no hay datos.</p></section>${old}`;
   const pct = (v) => (v == null ? "—" : `${v > 0 ? "+" : ""}${Number(v).toFixed(1)}%`);
   const usd = (v) => `${v > 0 ? "+" : ""}${Number(v || 0).toFixed(2)}`;
-  const col = (v) => (v > 0 ? "color:#16a34a" : v < 0 ? "color:#dc2626" : "");
+  const col = (v) => (v > 0 ? "color:var(--gain)" : v < 0 ? "color:var(--loss)" : "");
   const ar = (b) => (b ? "↑" : "↓");
   const s = a.summary;
   const wr = s.trades ? Math.round((100 * s.wins) / s.trades) : null;
@@ -1428,7 +1522,7 @@ const imgBox = (t, kind) => `<div class="aslimg" data-t="${esc(t)}" data-kind="$
   const taHtml = (o) => {
     if (!o) return "";
     const pl = o.plan, al = o.align, ic = { alineado: "🟢", neutral: "🟡", "en contra": "🔴" };
-    let h = `<p><b>Pisos</b> <span style="color:#16a34a">${(o.pisos || []).map(esc).join(" · ") || "—"}</span> · <b>Techos</b> <span style="color:#dc2626">${(o.techos || []).map(esc).join(" · ") || "—"}</span></p>`;
+    let h = `<p><b>Pisos</b> <span style="color:var(--gain)">${(o.pisos || []).map(esc).join(" · ") || "—"}</span> · <b>Techos</b> <span style="color:var(--loss)">${(o.techos || []).map(esc).join(" · ") || "—"}</span></p>`;
     if (pl) h += `<p>🎯 TP1 <b>${esc(pl.tp1)}</b> · TP2 <b>${esc(pl.tp2)}</b> · 🛑 SL <b>${esc(pl.sl)}</b> (bajo ${esc(pl.sl_why)}, -${esc(pl.risk_pct)}%) · R/B <b>${esc(pl.rb)}</b>${pl.warn ? " ⚠️" : ""}</p>`;
     if (al) h += `<p>${ic[al.v] || ""} Diario vs 45': <b>${esc(al.v)}</b> — ${esc(al.why)}</p>`;
     if (o.tend) h += `<p class="muted">${esc(o.tend)}</p>`;
@@ -1661,10 +1755,10 @@ function selectTab(name) {
   state.tab = TABS.includes(name) ? name : "principal";
   applyTab();
   const host = document.getElementById(state.tab === "loteria" ? "chart-loteria" : "chart-principal");
-  if (host) delete host.dataset.w;
+  if (host && state.tab !== "cocos") delete host.dataset.w;
   requestAnimationFrame(() => {
-    if (state.tab === "loteria") drawLoteriaChart();
-    else drawPrincipalChart();
+    if (state.tab === "loteria" && loteriaOn()) drawLoteriaChart();
+    else if (state.tab === "principal") drawPrincipalChart();
   });
 }
 
@@ -1898,8 +1992,6 @@ function showGate() {
   document.getElementById("tabs").hidden = true;
   document.getElementById("logout").hidden = true;
   document.getElementById("live").hidden = true;
-  const cocosBox = document.getElementById("side-real");
-  if (cocosBox) cocosBox.hidden = true;
 }
 
 function showApp() {

@@ -1,20 +1,38 @@
 :root {
-  --bg: #090b10;
-  --card: #141922;
-  --card-2: #1b2230;
-  --line: rgba(255, 255, 255, 0.08);
-  --text: #f3f6fb;
-  --muted: #9aa6ba;
-  --faint: #6d788c;
-  --gain: #3ee0a2;
-  --loss: #ff7390;
-  --lime: #d6ff4a;
-  --lime-ink: #161a08;
-  --amber: #ffc14d;
-  --info: #9ec1ff;
+  --bg: #0a0c0f;
+  --card: #15171a;
+  --card-2: #1b1e22;
+  --line: #25282d;
+  --text: #ecebe6;
+  --muted: #8d919a;
+  --faint: #6d717a;
+  --gain: #5fd68a;
+  --loss: #ff6b5e;
+  --lime: #9d8cff;
+  --lime-ink: #0a0c0f;
+  --amber: #e8c547;
+  --info: #9d8cff;
   --shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+  --mono: "JetBrains Mono", ui-monospace, monospace;
   color-scheme: dark;
   font-family: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+html[data-theme="claro"] {
+  --bg: #f5f4f0;
+  --card: #ffffff;
+  --card-2: #ebe9e3;
+  --line: #e2e0d9;
+  --text: #17181b;
+  --muted: #676a72;
+  --faint: #8a8d96;
+  --gain: #11804f;
+  --loss: #cf3b2a;
+  --lime: #9d8cff;
+  --lime-ink: #17181b;
+  --amber: #9a6b12;
+  --shadow: 0 12px 30px rgba(23, 24, 27, 0.08);
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -211,7 +229,7 @@ a:hover { color: #fff; }
   border-radius: 999px;
   background: rgba(214, 255, 74, 0.16);
   color: var(--lime);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
 }
@@ -297,7 +315,7 @@ input {
 }
 
 .hint { color: var(--faint); font-size: 13px; }
-.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.92em; }
+.mono { font-family: var(--mono); font-size: 0.92em; }
 
 .error { min-height: 1.2em; color: var(--muted); font-size: 14px; }
 .error.is-bad { color: var(--loss); }
@@ -332,7 +350,7 @@ input {
 
 .hero-num {
   margin: 0;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-weight: 500;
   font-size: clamp(2.7rem, 12vw, 4.5rem);
   letter-spacing: -0.055em;
@@ -368,7 +386,7 @@ input {
 .stat strong {
   display: block;
   margin-top: 3px;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: 1.12rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -485,7 +503,7 @@ input {
 .eq-tick {
   fill: #93a0b5;
   font-size: 10px;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
 }
 .bar-up { fill: var(--gain); }
 .bar-down { fill: var(--loss); }
@@ -510,7 +528,7 @@ input {
 
 .tip strong { display: block; font-weight: 600; margin-bottom: 4px; }
 .tip span { display: block; color: var(--muted); }
-.tip b { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; }
+.tip b { font-family: var(--mono); font-weight: 500; }
 
 .empty {
   min-height: 140px;
@@ -548,7 +566,7 @@ input {
 .meta, .sub { color: var(--faint); font-size: 13px; }
 
 .num, .pnl, .strat-pnl .big {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   letter-spacing: -0.03em;
@@ -595,7 +613,7 @@ input {
   width: 1.5rem;
   padding-top: 2px;
   color: var(--faint);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: 13px;
 }
 
@@ -631,7 +649,7 @@ input {
 
 .meter-top strong {
   color: var(--text);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-weight: 500;
   font-size: 0.95rem;
 }
@@ -671,7 +689,7 @@ input {
 .kpi strong {
   display: block;
   margin-top: 4px;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: 1.25rem;
   font-weight: 500;
   letter-spacing: -0.03em;
@@ -786,7 +804,7 @@ input {
 .table.lot-lab td:first-child { min-width: 190px; }
 
 /* ===== Rediseño 27/10: paneles planos, números mono, grilla ancha ===== */
-:root { --panel: #0e1117; --panel-2: #131822; --mono: "IBM Plex Mono", ui-monospace, monospace; }
+:root { --panel: #15171a; --panel-2: #1b1e22; --mono: "JetBrains Mono", ui-monospace, monospace; }
 .topbar, .tabs, .wrap { width: min(1360px, calc(100% - 24px)); }
 .tabs { grid-template-columns: repeat(3, 1fr); max-width: 520px; margin-left: max(12px, calc((100% - 1360px) / 2)); }
 @media (min-width: 800px) { .tabs { display: flex; gap: 4px; } .tabs button { padding: 0 18px; min-height: 40px; } }
@@ -960,7 +978,7 @@ body.in-app .side {
   height: 100vh;
   overflow: auto;
   padding: 18px 14px 16px;
-  background: #07090d;
+  background: var(--bg);
   border-right: 1px solid var(--line);
 }
 
@@ -991,7 +1009,7 @@ body.in-app .tabs button {
 }
 
 body.in-app .tabs button[aria-selected="true"] {
-  background: rgba(214, 255, 74, 0.1);
+  background: color-mix(in srgb, var(--lime) 16%, transparent);
   color: var(--text);
   box-shadow: inset 3px 0 0 var(--lime);
 }
@@ -1005,7 +1023,7 @@ body.in-app .tabs button[aria-selected="true"] {
 }
 
 .tab-pnl {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   font-weight: 500;
@@ -1041,7 +1059,7 @@ body.in-app .tabs button[aria-selected="true"] {
 }
 
 .cocos-line b {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--mono);
   font-weight: 500;
 }
 
@@ -1061,7 +1079,19 @@ html, body { overflow-x: clip; }
 .tbl td, .strip-name, .page-head p { overflow-wrap: anywhere; }
 .tbl th { overflow-wrap: normal; white-space: nowrap; }
 img, svg, .spark { max-width: 100%; height: auto; }
-.big-num { font-size: clamp(2.4rem, 12vw, 4rem); }
+.big-num { font-family: var(--mono); font-size: clamp(2.4rem, 12vw, 4rem); letter-spacing: -0.04em; }
+.mono, .num, .tbl .mono, .kick { font-family: var(--mono); }
+.badge-cocos { margin: 0; border: 1px solid var(--gain); color: var(--gain); border-radius: 8px; padding: 6px 11px; font-weight: 650; }
+.cocos-mep { margin: 0 0 8px; color: var(--muted); }
+.comp-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--card-2); }
+.comp-bar i { display: block; background: var(--lime); min-width: 2px; }
+.comp-bar i:nth-child(2n) { background: var(--gain); }
+.comp-bar i:nth-child(3n) { background: var(--amber); }
+.theme-switch { display: flex; gap: 4px; }
+.theme-switch button { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 7px; padding: 4px 8px; font-size: 12px; }
+.theme-switch button[aria-pressed="true"] { color: var(--text); border-color: var(--lime); }
+.side-kicker { font-family: var(--mono); }
+body.in-app .side .tabs .side-kicker { width: 100%; margin: 12px 10px 4px; }
 
 .page-head {
   display: flex;

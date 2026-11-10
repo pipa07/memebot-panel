@@ -99,6 +99,9 @@ selectTab("noticias");
 const newsShown = document.getElementById("panel-noticias").hidden === false && document.getElementById("panel-cripto").hidden === true;
 selectTab("principal");
 const principalShown = document.getElementById("panel-principal").hidden === false;
+selectTab("cocos");
+const cocosShown = document.getElementById("panel-cocos").hidden === false && document.getElementById("panel-principal").hidden === true;
+const visibleText = document.body.innerText;
 const report = {
   lotHidden: lot.hidden,
   lotDisplay: getComputedStyle(lot).display,
@@ -110,6 +113,9 @@ const report = {
   aslShown,
   newsShown,
   principalShown,
+  cocosShown,
+  noManualGroup: !visibleText.includes("REAL · MANUAL") && !visibleText.includes("carga manual"),
+  cocosEmpty: document.getElementById("panel-cocos").textContent.includes("Sin datos de Cocos"),
   hero: document.querySelector("#panel-principal .big-num").textContent.trim(),
 };
 document.body.insertAdjacentHTML("beforeend", '<pre id="ui-report"></pre>');
@@ -140,11 +146,14 @@ document.getElementById("ui-report").textContent = JSON.stringify(report);
     assert.equal(report.panelHidden, true);
     assert.equal(report.panelEmpty, true);
     assert.equal(report.panelHasLoteriaCard, false);
-    assert.deepEqual(report.visible, ["Principal", "Acciones ASL", "Noticias"]);
+    assert.deepEqual(report.visible, ["Principal", "Acciones ASL", "Noticias", "Cartera Cocos"]);
     assert.equal(report.navPnl, "—");
     assert.equal(report.aslShown, true);
     assert.equal(report.newsShown, true);
     assert.equal(report.principalShown, true);
+    assert.equal(report.cocosShown, true);
+    assert.equal(report.noManualGroup, true);
+    assert.equal(report.cocosEmpty, true);
     assert.match(report.hero, /^0,00/);
   } finally {
     server.kill("SIGKILL");

@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23d6ff4a' rx='8' width='32' height='32'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='13' font-family='sans-serif' font-weight='700' fill='%2314180a'%3Emb%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -19,13 +19,17 @@
         <div class="brand">
           <span class="mark" aria-hidden="true">mb</span>
           <span class="brand-text">
-            <strong>panel de trading</strong>
-            <em>memebot · papel</em>
+            <strong>memebot</strong>
+            <em>panel de trading</em>
           </span>
         </div>
-        <p class="badge-paper">BOT · PAPER</p>
+        <div class="theme-switch" role="group" aria-label="Tema">
+          <button type="button" data-theme="oscuro" aria-pressed="true">Oscuro</button>
+          <button type="button" data-theme="claro" aria-pressed="false">Claro</button>
+        </div>
       </div>
       <nav class="tabs" id="tabs" role="tablist" aria-label="Secciones" hidden>
+        <p class="side-kicker">BOT · PAPER</p>
         <button type="button" role="tab" id="tab-principal" data-tab="principal" aria-controls="panel-principal" aria-selected="true">
           <span class="tab-label">Principal</span>
           <span class="tab-pnl" id="nav-pnl-principal">—</span>
@@ -43,11 +47,12 @@
           <span class="tab-label">Noticias <span class="tab-count" id="tab-noticias-count" hidden></span></span>
           <span class="tab-pnl" id="nav-pnl-noticias">—</span>
         </button>
+        <p class="side-kicker">COCOS</p>
+        <button type="button" role="tab" id="tab-cocos" data-tab="cocos" aria-controls="panel-cocos" aria-selected="false" tabindex="-1">
+          <span class="tab-label">Cartera Cocos</span>
+          <span class="tab-pnl" id="nav-pnl-cocos">—</span>
+        </button>
       </nav>
-      <div class="side-real" id="side-real" hidden>
-        <p class="side-kicker">REAL · MANUAL</p>
-        <p class="cocos-line" id="cocos-line"><span>Cartera Cocos</span><em>sin saldo en este envío</em></p>
-      </div>
       <div class="side-status" id="side-status">
         <p class="live" id="live" hidden></p>
         <p class="scan-line" id="scan-line">Último escaneo sin hora</p>
@@ -77,6 +82,7 @@
           <section id="panel-loteria" role="tabpanel" aria-labelledby="tab-loteria" tabindex="0" hidden></section>
           <section id="panel-noticias" role="tabpanel" aria-labelledby="tab-noticias" tabindex="0" hidden></section>
           <section id="panel-cripto" role="tabpanel" aria-labelledby="tab-cripto" tabindex="0" hidden></section>
+          <section id="panel-cocos" role="tabpanel" aria-labelledby="tab-cocos" tabindex="0" hidden></section>
           <footer class="foot" id="foot"></footer>
         </main>
       </div>

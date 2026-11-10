@@ -13,7 +13,7 @@
   // Para restaurarla: poné loteria en true. Vuelven el tab, su PnL y el panel,
   // en el mismo lugar del menú. No hace falta otro cambio.
   const FEATURES = { loteria: false };
-  const NAV = ["principal", "loteria", "cripto", "noticias"];
+  const NAV = ["principal", "loteria", "cripto", "noticias", "cocos"];
 
   function featureEnabled(name) {
     return FEATURES[name] === true;
@@ -32,6 +32,7 @@
         loteria: featureEnabled("loteria") ? (safe.loteriaPnl ?? null) : null,
         cripto: safe.aslPnl ?? null,
         noticias: safe.noticiasPnl ?? null,
+        cocos: safe.cocos && safe.cocos.usd != null ? safe.cocos.usd : null,
       },
     };
   }
@@ -190,16 +191,42 @@
   }
 
   function mapCocos(stats) {
-    const raw = stats && (stats.cocos || (stats.real && typeof stats.real === "object" ? stats.real : null));
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-      return { present: false, usd: null, label: "Cartera Cocos", when: "", operations: [] };
-    }
+    const empty = {
+      present: false,
+      usd: null,
+      label: "Cartera Cocos",
+      when: "",
+      mep: null,
+      valorizado: null,
+      hoy: null,
+      invertido: null,
+      sinVender: null,
+      realizada: null,
+      holdings: [],
+      operations: [],
+      equity: [],
+      sells: [],
+    };
+    const raw = stats && stats.cocos;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return empty;
+    const holdings = Array.isArray(raw.holdings) ? raw.holdings : Array.isArray(raw.tenencias) ? raw.tenencias : [];
+    const operations = Array.isArray(raw.operations) ? raw.operations : [];
+    const sells = Array.isArray(raw.realizadas) ? raw.realizadas : operations.filter((row) => row && String(row.tipo || row.side || "").toLowerCase() === "venta");
     return {
       present: true,
       usd: num(raw.usd != null ? raw.usd : raw.cocos_usd != null ? raw.cocos_usd : raw.balance != null ? raw.balance : raw.balance_usd),
       label: raw.label || raw.name || "Cartera Cocos",
       when: raw.updated_at || raw.at || "",
-      operations: Array.isArray(raw.operations) ? raw.operations : [],
+      mep: num(raw.mep != null ? raw.mep : raw.dolar_mep),
+      valorizado: num(raw.valorizado != null ? raw.valorizado : raw.market_value),
+      hoy: num(raw.hoy != null ? raw.hoy : raw.pnl_today != null ? raw.pnl_today : raw.day_pnl),
+      invertido: num(raw.invertido != null ? raw.invertido : raw.invested != null ? raw.invested : raw.cost),
+      sinVender: num(raw.unrealized != null ? raw.unrealized : raw.ganancia_abierta),
+      realizada: num(raw.realized != null ? raw.realized : raw.ganancia_realizada),
+      holdings,
+      operations,
+      equity: Array.isArray(raw.equity) ? raw.equity : Array.isArray(raw.evolucion) ? raw.evolucion : [],
+      sells,
     };
   }
 
